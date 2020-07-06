@@ -23,7 +23,8 @@ import shutil
 import time
 import warnings
 
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
+from ipython_genutils.py3compat import with_metaclass
 from jsonschema import validate, ValidationError, draft7_format_checker
 from traitlets import Type, log
 from traitlets.config import SingletonConfigurable, LoggingConfigurable
@@ -117,57 +118,7 @@ class Metadata(object):
         return json.dumps(prepared, indent=2)
 
 
-class MetadataManager(LoggingConfigurable):
-
-    # System-owned namespaces
-    NAMESPACE_RUNTIMES = "runtimes"
-    NAMESPACE_CODE_SNIPPETS = "code-snippets"
-    NAMESPACE_RUNTIME_IMAGES = "runtime-images"
-
-    metadata_class = Type(Metadata, config=True,
-                          help="""The metadata class.  This is configurable to allow subclassing of
-                          the MetadataManager for customized behavior.""")
-
-    def __init__(self, namespace, store=None, **kwargs):
-        """
-        Generic object to read Notebook related metadata
-        :param namespace: the partition where it is stored, this might have
-        a unique meaning for each of the supported metadata storage
-        :param store: the metadata store to be used
-        :param kwargs: additional arguments to be used to instantiate a metadata store
-        """
-        super(MetadataManager, self).__init__(**kwargs)
-
-        self.namespace = namespace
-        if store:
-            self.metadata_store = store
-        else:
-            self.metadata_store = FileMetadataStore(namespace, **kwargs)
-
-    def namespace_exists(self):
-        return self.metadata_store.namespace_exists()
-
-    @property
-    def get_metadata_locations(self):
-        return self.metadata_store.get_metadata_locations
-
-    def get_all_metadata_summary(self, include_invalid=False):
-        return self.metadata_store.get_all_metadata_summary(include_invalid=include_invalid)
-
-    def get_all(self):
-        return self.metadata_store.get_all()
-
-    def get(self, name):
-        return self.metadata_store.read(name)
-
-    def add(self, name, metadata, replace=False):
-        return self.metadata_store.save(name, metadata, replace)
-
-    def remove(self, name):
-        self.metadata_store.remove(name)
-
-
-class MetadataStore(ABC):
+class MetadataStore(with_metaclass(ABCMeta)):
     def __init__(self, namespace, **kwargs):
         self.schema_mgr = SchemaManager.instance()
         self.schema_mgr.validate_namespace(namespace)
@@ -216,6 +167,34 @@ class MetadataStore(ABC):
                 format(name, self.namespace, first_line)
             self.log.error(msg)
             raise ValidationError(msg) from ve
+
+
+class DBMetadataStore(MetadataStore):
+    def __init__(self, namespace, **kwargs):
+        super(DBMetadataStore, self).__init__(namespace, **kwargs)
+
+
+    def namespace_exists(self):
+        """Does the namespace exist in any of the dir paths?"""
+        raise NotImplementedError
+
+    def get_metadata_locations(self):
+        raise NotImplementedError
+
+    def get_all_metadata_summary(self):
+        raise NotImplementedError
+
+    def get_all(self):
+        raise NotImplementedError
+
+    def read(self, name):
+        raise NotImplementedError
+
+    def save(self, name, metadata, replace=False):
+        raise NotImplementedError
+
+    def remove(self, name):
+        raise NotImplementedError
 
 
 class FileMetadataStore(MetadataStore):
@@ -602,3 +581,59 @@ class SchemaManager(SingletonConfigurable):
             namespace_schemas[namespace][name] = schema_json
 
         return copy.deepcopy(namespace_schemas)
+
+
+class MetadataManager(LoggingConfigurable):
+
+    # System-owned namespaces
+    NAMESPACE_RUNTIMES = "runtimes"
+    NAMESPACE_CODE_SNIPPETS = "code-snippets"
+    NAMESPACE_RUNTIME_IMAGES = "runtime-images"
+
+    metadata_class = Type(Metadata, config=True,
+                          help="""The metadata class.  This is configurable to allow subclassing of
+                          the Metadata for customized behavior.""")
+
+    metadata_store_class = Type(default_value=FileMetadataStore, config=True,
+                          klass=MetadataStore,
+                          help="""The metadata store class.  This is configurable to allow subclassing of
+                          the MetadataManager for customized behavior.""")
+
+    def __init__(self, namespace, **kwargs):
+        """
+        Generic object to read Notebook related metadata
+        :param namespace: the partition where it is stored, this might have
+        a unique meaning for each of the supported metadata storage
+        :param store: the metadata store to be used
+        :param kwargs: additional arguments to be used to instantiate a metadata store
+        """
+        super(MetadataManager, self).__init__(**kwargs)
+
+        self.namespace = namespace
+        self.metadata_store = self.metadata_store_class(namespace, **kwargs)
+        print(self.metadata_store.__class__.__name__)
+
+    def namespace_exists(self):
+        return self.metadata_store.namespace_exists()
+
+    @property
+    def get_metadata_locations(self):
+        return self.metadata_store.get_metadata_locations
+
+    def get_all_metadata_summary(self, include_invalid=False):
+        return self.metadata_store.get_all_metadata_summary(include_invalid=include_invalid)
+
+    def get_all(self):
+        return self.metadata_store.get_all()
+
+    def get(self, name):
+        return self.metadata_store.read(name)
+
+    def add(self, name, metadata, replace=False):
+        return self.metadata_store.save(name, metadata, replace)
+
+    def remove(self, name):
+        self.metadata_store.remove(name)
+
+
+MetadataStore.register(FileMetadataStore)

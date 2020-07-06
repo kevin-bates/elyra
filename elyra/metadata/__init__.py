@@ -13,5 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from .metadata import FileMetadataStore, Metadata, MetadataManager, MetadataStore, SchemaManager, \
+from .metadata import FileMetadataStore, Metadata, MetadataManager, MetadataStore, DBMetadataStore, SchemaManager, \
     METADATA_TEST_NAMESPACE

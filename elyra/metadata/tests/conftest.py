@@ -21,7 +21,7 @@ import jupyter_core.paths
 
 from notebook.utils import url_path_join
 from tornado.escape import url_escape
-from elyra.metadata import MetadataManager, FileMetadataStore, SchemaManager, METADATA_TEST_NAMESPACE
+from elyra.metadata import MetadataManager, FileMetadataStore, DBMetadataStore, SchemaManager, METADATA_TEST_NAMESPACE
 from .test_utils import valid_metadata_json, invalid_metadata_json, another_metadata_json, byo_metadata_json, \
     create_json_file
 
@@ -123,7 +123,7 @@ def setup_hierarchy(environ, factory_dir):
 
 @pytest.fixture
 def tests_manager(setup_namespace):
-    return MetadataManager(namespace=METADATA_TEST_NAMESPACE)
+    return MetadataManager(namespace=METADATA_TEST_NAMESPACE) #, metadata_store_class=DBMetadataStore)
 
 
 @pytest.fixture
