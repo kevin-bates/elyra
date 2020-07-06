@@ -3,6 +3,8 @@
   "title": "Testing metadata",
   "name": "metadata-test",
   "namespace": "metadata-tests",
+  "metadata_class": "elyra.metadata.tests.MetadataTests",
+  "metadata_store_class": "elyra.metadata.metadata.FileMetadataStore",
   "properties": {
     "schema_name": {
       "type": "string",

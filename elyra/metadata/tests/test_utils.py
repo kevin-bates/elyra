@@ -19,7 +19,7 @@ import json
 import os
 
 from jsonschema import ValidationError
-from ..metadata import METADATA_TEST_NAMESPACE
+from ..metadata import METADATA_TEST_NAMESPACE, Metadata
 
 valid_metadata_json = {
     'schema_name': 'metadata-test',
@@ -192,3 +192,8 @@ class PropertyTester(object):
             assert instance_json["schema_name"] == 'metadata-test'
             assert instance_json["display_name"] == self.name
             assert instance_json["metadata"][self.property] == self.positive_value
+
+
+class MetadataTests(Metadata):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)

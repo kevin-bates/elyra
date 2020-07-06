@@ -25,6 +25,7 @@ import warnings
 
 from abc import ABC, ABCMeta, abstractmethod
 from ipython_genutils.py3compat import with_metaclass
+from ipython_genutils.importstring import import_item
 from jsonschema import validate, ValidationError, draft7_format_checker
 from traitlets import Type, log
 from traitlets.config import SingletonConfigurable, LoggingConfigurable
@@ -477,13 +478,31 @@ class FileMetadataStore(MetadataStore):
                 else:
                     raise ve from ve
 
-        metadata = Metadata(name=name,
-                            display_name=metadata_json.get('display_name'),
-                            schema_name=metadata_json.get('schema_name'),
-                            resource=resource,
-                            metadata=metadata_json.get('metadata'),
-                            reason=reason)
+        # metadata = Metadata(name=name,
+        #                     display_name=metadata_json.get('display_name'),
+        #                     schema_name=metadata_json.get('schema_name'),
+        #                     resource=resource,
+        #                     metadata=metadata_json.get('metadata'),
+        #                     reason=reason)
+
+        metadata = self._create_metadata_instance(name=name, metadata_dict=metadata_json, resource=resource, reason=reason)
+
         return metadata
+
+    def _create_metadata_instance(self, name: str, metadata_dict: dict, resource: str, reason: str) -> Metadata:
+
+        # Get the schema and look for metadata_class entry and use that, else Metadata.
+        schema = self._get_schema(metadata_dict.get('schema_name'))
+        metadata_class_name = schema.get('metadata_class') or 'Metadata'
+        metadata_class = import_item(metadata_class_name)
+
+        instance = metadata_class(name=name,
+                                  display_name=metadata_dict.get('display_name'),
+                                  schema_name=metadata_dict.get('schema_name'),
+                                  metadata=metadata_dict.get('metadata'),
+                                  resource=resource,
+                                  reason=reason)
+        return instance
 
 
 class SchemaManager(SingletonConfigurable):
